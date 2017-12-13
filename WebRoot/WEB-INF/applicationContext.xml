@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://www.springframework.org/schema/beans" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://www.springframework.org/schema/tx
+    http://www.springframework.org/schema/tx/spring-tx.xsd
+    http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+
+	<!--基于 <tx> 和 <aop> 命名空间的声明式事务 -->
+	<!-- 配置事务传播特性 -->
+	<tx:advice id="TestAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="get*" read-only="true" />
+			<tx:method name="*" isolation="DEFAULT" propagation="REQUIRED"
+				timeout="5" />
+		</tx:attributes>
+	</tx:advice>
+
+	<tx:annotation-driven />
+
+	<!-- 配置参与事务的类 -->
+	<aop:config>
+		<aop:pointcut id="allTestServiceMethod" expression="bean(employeeService)" />
+		<aop:advisor pointcut-ref="allTestServiceMethod"
+			advice-ref="TestAdvice" />
+	</aop:config>
+
+
+
+
+	<!-- *********************************************************** -->
+
+	<!-- hibernate 配置 -->
+	<!-- 定义数据源bean 使用c3p0数据源 并注入相关参数 -->
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		destroy-method="close" p:driverClass="com.mysql.jdbc.Driver"
+		p:jdbcUrl="jdbc:mysql://localhost/test?useSSL=false" p:user="root"
+		p:password="194061" p:maxPoolSize="40" p:minPoolSize="2"
+		p:initialPoolSize="2" p:maxIdleTime="30" />
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate5.LocalSessionFactoryBean"
+		p:dataSource-ref="dataSource">
+
+		<!--annotateClasses用来列出所有持久化类 -->
+		<property name="annotatedClasses">
+			<list>
+				<value>com.xxx.dao.Employee</value>
+			</list>
+		</property>
+
+		<!-- 定义hibernate sessionFactory的属性 -->
+		<property name="hibernateProperties">
+			<props>
+				<!-- 定义hibernate方言 -->
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQL5InnoDBDialect</prop>
+				<!-- 是否根据hibernate映射创建数据表 -->
+				<prop key="hibernate.hbm2ddl.auto">update</prop>
+				<prop key="hibernate.show_sql">true</prop>
+				<prop key="hibernate.format_sql">true</prop>
+			</props>
+		</property>
+	</bean>
+	<!-- ************************************************************* -->
+
+
+	<bean id="employeeService" class="com.xxx.service.EmployeeServiceImpl"
+		scope="prototype">
+		<property name="employeeDao" ref="employeeDao"></property>
+	</bean>
+
+	<bean id="employeeDao" class="com.xxx.dao.EmployeeDaoHibernate">
+		<property name="sessionFactory" ref="sessionFactory"></property>
+	</bean>
+	
+	<bean id="employeeAction" scope="prototype" class="com.xxx.action.EmployeeAction">
+		<property name="employeeService" ref="employeeService"></property>
+	</bean>
+
+	<bean id="loginService" class="com.xxx.service.LoginServiceImpl" />
+
+	<bean id="loginAction" scope="prototype" class="com.xxx.action.LoginAction">
+		<property name="loginService" ref="loginService"></property>
+	</bean>
+
+</beans>
